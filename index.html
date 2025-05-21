@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EmpowerFresh Sprint Insights</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #f9f9f9;
+        padding: 2rem;
+        max-width: 600px;
+        margin: auto;
+        color: #222;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        font-weight: 600;
+      }
+
+      select {
+        padding: 0.5rem;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+      }
+
+      button {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 6px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      button:hover {
+        background: #1e40af;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📊 EmpowerFresh Sprint Insights</h1>
+
+    <div class="form-grid">
+      <label>
+        Time Period:
+        <select id="range">
+          <option value="sprint-to-today">🕓 This Sprint (to Today)</option>
+          <option value="full-sprint">📅 This Sprint (Full 2 Weeks)</option>
+          <option value="prev-sprint">⬅️ Previous Sprint (Full 2 Weeks)</option>
+          <option value="1M">📆 Last 1 Month</option>
+          <option value="3M">📆 Last 3 Months</option>
+          <option value="max">📊 All Time</option>
+        </select>
+      </label>
+
+      <label>
+        Metric:
+        <select id="metric">
+          <option value="20">Ticket Count</option>
+          <option value="18">Story Points</option>
+        </select>
+      </label>
+
+      <label>
+        Label:
+        <select id="label">
+          <option value="">— None —</option>
+          <option value="Bug">Bug</option>
+          <option value="Epic">Epic</option>
+          <option value="Onboarding">Onboarding</option>
+          <option value="Feature">Feature</option>
+          <!-- Add others as needed -->
+        </select>
+      </label>
+
+      <label>
+        Assignee:
+        <select id="assignee">
+          <option value="">— None —</option>
+          <option value="btemple-ef">btemple-ef</option>
+          <option value="cwymore">cwymore</option>
+          <option value="Jawa-Enkhjin">Jawa-Enkhjin</option>
+          <option value="Isaachristian">Isaachristian</option>
+          <option value="zac-ef">zac-ef</option>
+        </select>
+      </label>
+
+      <button onclick="go()">Go</button>
+      <p id="copy-status" style="margin-top: 0.5rem; color: green"></p>
+      <div style="margin-top: 1rem">
+        <label
+          for="preview-link"
+          style="font-weight: bold; display: block; margin-bottom: 0.25rem"
+        >
+          📎 Copy GitHub Chart Link
+        </label>
+        <div style="display: flex; gap: 0.5rem">
+          <input
+            type="text"
+            id="preview-link"
+            readonly
+            style="flex: 1; padding: 0.5rem; font-size: 0.9rem"
+          />
+          <button
+            type="button"
+            onclick="copyLink()"
+            style="
+              padding: 0.5rem 0.75rem;
+              font-size: 0.9rem;
+              background: #2563eb;
+              color: white;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+            "
+          >
+            📋 Copy
+          </button>
+        </div>
+        <p
+          id="copy-status"
+          style="
+            color: green;
+            margin-top: 0.25rem;
+            min-height: 1.25rem;
+            transition: opacity 0.2s ease;
+          "
+        ></p>
+      </div>
+    </div>
+
+    <script>
+      const expectedPassword = "efinsights";
+
+      window.addEventListener("DOMContentLoaded", () => {
+        if (sessionStorage.getItem("authenticated") === "true") {
+          copyLink(); // auto-generate preview on load
+        }
+      });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        const preview = document.getElementById("preview-link");
+
+        function updatePreview() {
+          preview.value = buildShareableURL();
+        }
+
+        // Initial fill
+        updatePreview();
+
+        // Update preview when any select changes
+        ["range", "metric", "label", "assignee"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener("change", updatePreview);
+        });
+
+        // If user is already authed from sessionStorage, update preview on load
+        if (sessionStorage.getItem("authenticated") === "true") {
+          updatePreview();
+        }
+      });
+
+      function buildShareableURL() {
+        const metric = document.getElementById("metric")?.value || "20";
+        const range = document.getElementById("range")?.value;
+        const label = document.getElementById("label")?.value.trim();
+        const assignee = document.getElementById("assignee")?.value.trim();
+        const today = new Date();
+        const baseline = new Date("2025-05-20");
+        const MS_IN_DAY = 86400000;
+
+        const filters = ["is:issue"];
+        let start = null;
+        let end = null;
+        let periodParam = "";
+
+        // Sprint-based logic
+        if (["sprint-to-today", "full-sprint", "prev-sprint"].includes(range)) {
+          const isPrev = range === "prev-sprint";
+          const sprintLabel = isPrev ? "@previous" : "@current";
+          filters.push(`label:${sprintLabel}`);
+
+          let sprintStart = getSprintStart(today, baseline);
+          if (isPrev)
+            sprintStart = new Date(sprintStart.getTime() - 14 * MS_IN_DAY);
+
+          start = sprintStart;
+          end =
+            range === "sprint-to-today"
+              ? today
+              : new Date(sprintStart.getTime() + 13 * MS_IN_DAY);
+
+          periodParam = `period=custom&start_date=${formatDate(
+            start
+          )}&end_date=${formatDate(end)}`;
+        } else {
+          // Fixed period (1M, 3M, max)
+          periodParam = `period=${range}`;
+        }
+
+        if (label) filters.push(`label:${label}`);
+        if (assignee) filters.push(`assignee:${assignee}`);
+
+        const filterQuery = encodeURIComponent(filters.join(" "));
+
+        const githubBase = `https://github.com/orgs/EmpowerFreshDev/projects/1/insights/${metric}`;
+        const delimiter = periodParam ? "&" : "";
+        return `${githubBase}?filterQuery=${filterQuery}${delimiter}${periodParam}`;
+      }
+
+      function copyLink() {
+        const fullURL = buildShareableURL();
+        const preview = document.getElementById("preview-link");
+        const status = document.getElementById("copy-status");
+
+        preview.value = fullURL;
+
+        navigator.clipboard
+          .writeText(fullURL)
+          .then(() => {
+            status.textContent = "✅ Link copied to clipboard!";
+            status.style.opacity = 1;
+
+            setTimeout(() => {
+              status.style.opacity = 0;
+            }, 2500);
+          })
+          .catch(err => {
+            console.error(err);
+            status.textContent = "❌ Failed to copy link.";
+            status.style.opacity = 1;
+          });
+      }
+
+      const params = new URLSearchParams(window.location.search);
+
+      // Auto-fill dropdowns
+      const prefillFields = ["range", "metric", "label", "assignee"];
+      prefillFields.forEach(id => {
+        const el = document.getElementById(id);
+        const val = params.get(id);
+        if (el && val) el.value = val;
+      });
+
+      // Auth handling (same as before)
+      const urlPass = params.get("pass");
+      const isAuthed = sessionStorage.getItem("authenticated") === "true";
+
+      if (!isAuthed) {
+        if (urlPass === expectedPassword) {
+          sessionStorage.setItem("authenticated", "true");
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          ); // clean URL
+        } else {
+          const input = prompt("Enter password:");
+          if (input !== expectedPassword) {
+            document.body.innerHTML =
+              '<h2 style="text-align:center;margin-top:5rem;">🔒 Access Denied</h2>';
+            throw new Error("Not authenticated");
+          } else {
+            sessionStorage.setItem("authenticated", "true");
+          }
+        }
+      }
+      function getSprintStart(today, base) {
+        const MS_IN_DAY = 86400000;
+        const daysSinceBase = Math.floor((today - base) / MS_IN_DAY);
+        const offset = Math.floor(daysSinceBase / 14) * 14;
+        return new Date(base.getTime() + offset * MS_IN_DAY);
+      }
+
+      function formatDate(d) {
+        return d.toISOString().split("T")[0];
+      }
+
+      function go() {
+        const range = document.getElementById("range").value;
+        const metric = document.getElementById("metric").value;
+        const label = document.getElementById("label").value.trim();
+        const assignee = document.getElementById("assignee").value.trim();
+        const today = new Date();
+        const baseline = new Date("2025-05-20");
+        const filters = [];
+        let start = null;
+        let end = null;
+        let periodParam = "";
+        let sprintLabel = null;
+
+        if (
+          range === "sprint-to-today" ||
+          range === "full-sprint" ||
+          range === "prev-sprint"
+        ) {
+          const isPrev = range === "prev-sprint";
+          sprintLabel = isPrev ? "@previous" : "@current";
+
+          let sprintStart = getSprintStart(today, baseline);
+          if (isPrev)
+            sprintStart = new Date(sprintStart.getTime() - 14 * 86400000);
+
+          start = sprintStart;
+          end =
+            range === "sprint-to-today"
+              ? today
+              : new Date(sprintStart.getTime() + 13 * 86400000);
+
+          periodParam = `period=custom`;
+          filters.push(`label:${sprintLabel}`);
+        } else {
+          periodParam = `period=${range}`;
+        }
+
+        if (label) filters.push(`label:${label}`);
+        if (assignee) filters.push(`assignee:${assignee}`);
+
+        const base = `https://github.com/orgs/EmpowerFreshDev/projects/1/insights/${metric}`;
+        let url = base;
+
+        if (filters.length > 0) {
+          url += `?filterQuery=${encodeURIComponent(filters.join(" "))}`;
+        }
+
+        const delimiter = filters.length > 0 ? "&" : "?";
+        if (periodParam) {
+          url += `${delimiter}${periodParam}`;
+        }
+
+        if (start && end) {
+          url += `&start_date=${formatDate(start)}&end_date=${formatDate(end)}`;
+        }
+
+        window.open(url, "_blank");
+      }
+    </script>
+  </body>
+</html>
