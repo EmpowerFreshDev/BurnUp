@@ -251,7 +251,7 @@
         if (["sprint-to-today", "full-sprint", "prev-sprint"].includes(range)) {
           const isPrev = range === "prev-sprint";
           const sprintLabel = isPrev ? "@previous" : "@current";
-          filters.push(`label:${sprintLabel}`);
+          filters.push(`sprint:${sprintLabel}`);
 
           let sprintStart = getSprintStart(today, baseline);
           if (isPrev)
@@ -270,7 +270,7 @@
           period = `period=${range}`;
         }
 
-        // ✅ Always wrap label in quotes
+        // Always wrap label in quotes
         if (label) {
           filters.push(`label:"${label}"`);
         }
@@ -310,39 +310,6 @@
           });
       }
 
-      const params = new URLSearchParams(window.location.search);
-
-      // Auto-fill dropdowns
-      const prefillFields = ["range", "metric", "label", "assignee"];
-      prefillFields.forEach(id => {
-        const el = document.getElementById(id);
-        const val = params.get(id);
-        if (el && val) el.value = val;
-      });
-
-      // Auth handling (same as before)
-      const urlPass = params.get("pass");
-      const isAuthed = sessionStorage.getItem("authenticated") === "true";
-
-      if (!isAuthed) {
-        if (urlPass === expectedPassword) {
-          sessionStorage.setItem("authenticated", "true");
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-          ); // clean URL
-        } else {
-          const input = prompt("Enter password:");
-          if (input !== expectedPassword) {
-            document.body.innerHTML =
-              '<h2 style="text-align:center;margin-top:5rem;">🔒 Access Denied</h2>';
-            throw new Error("Not authenticated");
-          } else {
-            sessionStorage.setItem("authenticated", "true");
-          }
-        }
-      }
       function getSprintStart(today, base) {
         const MS_IN_DAY = 86400000;
         const daysSinceBase = Math.floor((today - base) / MS_IN_DAY);
@@ -361,6 +328,7 @@
         const assignee = document.getElementById("assignee").value.trim();
         const today = new Date();
         const baseline = new Date("2025-05-20");
+        const MS_IN_DAY = 86400000;
         const filters = ["is:issue"];
         let start = null;
         let end = null;
@@ -377,22 +345,22 @@
 
           let sprintStart = getSprintStart(today, baseline);
           if (isPrev)
-            sprintStart = new Date(sprintStart.getTime() - 14 * 86400000);
+            sprintStart = new Date(sprintStart.getTime() - 14 * MS_IN_DAY);
 
           start = sprintStart;
           end =
             range === "sprint-to-today"
               ? today
-              : new Date(sprintStart.getTime() + 13 * 86400000);
+              : new Date(sprintStart.getTime() + 13 * MS_IN_DAY);
 
           periodParam = `period=custom`;
-          filters.push(`label:${sprintLabel}`);
+          filters.push(`sprint:${sprintLabel}`);
         } else {
           periodParam = `period=${range}`;
         }
+        
         if (label) {
-          const quotedLabel = `"${label}"`;
-          filters.push(`label:${quotedLabel}`);
+          filters.push(`label:"${label}"`);
         }
 
         if (assignee) filters.push(`assignee:${assignee}`);
@@ -414,6 +382,41 @@
         }
 
         window.open(url, "_blank");
+      }
+      
+      // Handle URL parameters and authentication
+      const params = new URLSearchParams(window.location.search);
+
+      // Auto-fill dropdowns
+      const prefillFields = ["range", "metric", "label", "assignee"];
+      prefillFields.forEach(id => {
+        const el = document.getElementById(id);
+        const val = params.get(id);
+        if (el && val) el.value = val;
+      });
+
+      // Auth handling
+      const urlPass = params.get("pass");
+      const isAuthed = sessionStorage.getItem("authenticated") === "true";
+
+      if (!isAuthed) {
+        if (urlPass === expectedPassword) {
+          sessionStorage.setItem("authenticated", "true");
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          ); // clean URL
+        } else {
+          const input = prompt("Enter password:");
+          if (input !== expectedPassword) {
+            document.body.innerHTML =
+              '<h2 style="text-align:center;margin-top:5rem;">🔒 Access Denied</h2>';
+            throw new Error("Not authenticated");
+          } else {
+            sessionStorage.setItem("authenticated", "true");
+          }
+        }
       }
     </script>
   </body>
