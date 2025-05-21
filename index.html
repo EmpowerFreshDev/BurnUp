@@ -254,7 +254,7 @@
           periodParam = `period=${range}`;
         }
 
-        if (label) filters.push(`label:${label}`);
+        if (label) filters.push(`label:"${label}"`);
         if (assignee) filters.push(`assignee:${assignee}`);
 
         const filterQuery = encodeURIComponent(filters.join(" "));
