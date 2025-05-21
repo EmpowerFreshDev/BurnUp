@@ -83,27 +83,39 @@
         Label:
         <select id="label">
           <option value="">— None —</option>
-          <option value="sev-1">sev-1 – Service is completely down for all customers</option>
-          <option value="sev-2">sev-2 – Service is down for a subset of customers</option>
+          <option value="sev-1">
+            sev-1 – Service is completely down for all customers
+          </option>
+          <option value="sev-2">
+            sev-2 – Service is down for a subset of customers
+          </option>
           <option value="sev-3">sev-3 – Partial loss of functionality</option>
-          <option value="sev-4">sev-4 – Minor issue not affecting core functionality</option>
+          <option value="sev-4">
+            sev-4 – Minor issue not affecting core functionality
+          </option>
           <option value="Shrink Reporting">Shrink Reporting</option>
           <option value="sp-1">sp-1 – Tech Debt</option>
           <option value="test">test</option>
-          <option value="Triage">Triage – Needs prioritization and assignment</option>
+          <option value="Triage">
+            Triage – Needs prioritization and assignment
+          </option>
           <option value="Vend: A&L Potato">Vend: A&amp;L Potato</option>
           <option value="Vend: Affiliated">Vend: Affiliated</option>
           <option value="Vend: AWG">Vend: AWG</option>
           <option value="Vend: Four Seasons">Vend: Four Seasons</option>
           <option value="Vend: Liberty Fruit">Vend: Liberty Fruit</option>
-          <option value="Vend: Quality Fruit & Veg">Vend: Quality Fruit &amp; Veg</option>
+          <option value="Vend: Quality Fruit & Veg">
+            Vend: Quality Fruit &amp; Veg
+          </option>
           <option value="Vend: Russ Davis">Vend: Russ Davis</option>
           <option value="Vend: TMK">Vend: TMK</option>
           <option value="Vend: UNFI">Vend: UNFI</option>
           <option value="Vend: Yate's">Vend: Yate's</option>
           <option value="After Deployment">After Deployment</option>
           <option value="AppTeam">AppTeam</option>
-          <option value="BLOCKED">BLOCKED – Status is blocked for some reason</option>
+          <option value="BLOCKED">
+            BLOCKED – Status is blocked for some reason
+          </option>
           <option value="Bug">Bug – Something isn't working</option>
           <option value="Cust: B&R">Cust: B&amp;R</option>
           <option value="Cust: C&R">Cust: C&amp;R</option>
@@ -117,22 +129,29 @@
           <option value="Cust: Queen's">Cust: Queen's</option>
           <option value="Cust: Ray's">Cust: Ray's</option>
           <option value="Cust: White's">Cust: White's</option>
-          <option value="Customer Scorecard">Customer Scorecard – Dashboard</option>
+          <option value="Customer Scorecard">
+            Customer Scorecard – Dashboard
+          </option>
           <option value="Deployment">Deployment</option>
           <option value="Discovery needed">Discovery needed</option>
           <option value="Docs">Docs – Documentation improvements</option>
-          <option value="eFresh">eFresh – Effort for deploying the order guide</option>
+          <option value="eFresh">
+            eFresh – Effort for deploying the order guide
+          </option>
           <option value="Epic">Epic – Large body of work</option>
-          <option value="Feature">Feature – New features or enhancements</option>
+          <option value="Feature">
+            Feature – New features or enhancements
+          </option>
           <option value="Frontend">Frontend</option>
           <option value="Investigation">Investigation</option>
           <option value="Needs Refinement">Needs Refinement</option>
-          <option value="Onboarding">Onboarding – New customer/vendor setup</option>
+          <option value="Onboarding">
+            Onboarding – New customer/vendor setup
+          </option>
           <option value="Platform & Data Team">Platform &amp; Data Team</option>
           <option value="priority-low">priority-low</option>
         </select>
       </label>
-      
 
       <label>
         Assignee:
@@ -147,7 +166,6 @@
       </label>
 
       <button onclick="go()">Go</button>
-      <p id="copy-status" style="margin-top: 0.5rem; color: green"></p>
       <div style="margin-top: 1rem">
         <label
           for="preview-link"
@@ -193,7 +211,6 @@
     <script>
       const expectedPassword = "efinsights";
 
-
       window.addEventListener("DOMContentLoaded", () => {
         const preview = document.getElementById("preview-link");
 
@@ -228,9 +245,9 @@
         const filters = ["is:issue"];
         let start = null;
         let end = null;
-        let periodParam = "";
+        let period = "";
 
-        // Sprint-based logic
+        // Handle sprint ranges
         if (["sprint-to-today", "full-sprint", "prev-sprint"].includes(range)) {
           const isPrev = range === "prev-sprint";
           const sprintLabel = isPrev ? "@previous" : "@current";
@@ -246,22 +263,27 @@
               ? today
               : new Date(sprintStart.getTime() + 13 * MS_IN_DAY);
 
-          periodParam = `period=custom&start_date=${formatDate(
+          period = `period=custom&start_date=${formatDate(
             start
           )}&end_date=${formatDate(end)}`;
         } else {
-          // Fixed period (1M, 3M, max)
-          periodParam = `period=${range}`;
+          period = `period=${range}`;
         }
 
-        if (label) filters.push(`label:"${label}"`);
-        if (assignee) filters.push(`assignee:${assignee}`);
+        // ✅ Always wrap label in quotes
+        if (label) {
+          filters.push(`label:"${label}"`);
+        }
 
-        const filterQuery = encodeURIComponent(filters.join(" "));
+        if (assignee) {
+          filters.push(`assignee:${assignee}`);
+        }
 
+        const filterQuery = `filterQuery=${encodeURIComponent(
+          filters.join(" ")
+        )}`;
         const githubBase = `https://github.com/orgs/EmpowerFreshDev/projects/1/insights/${metric}`;
-        const delimiter = periodParam ? "&" : "";
-        return `${githubBase}?filterQuery=${filterQuery}${delimiter}${periodParam}`;
+        return `${githubBase}?${filterQuery}&${period}`;
       }
 
       function copyLink() {
@@ -368,8 +390,11 @@
         } else {
           periodParam = `period=${range}`;
         }
+        if (label) {
+          const quotedLabel = `"${label}"`;
+          filters.push(`label:${quotedLabel}`);
+        }
 
-        if (label) filters.push(`label:${label}`);
         if (assignee) filters.push(`assignee:${assignee}`);
 
         const base = `https://github.com/orgs/EmpowerFreshDev/projects/1/insights/${metric}`;
